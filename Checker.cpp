@@ -14,6 +14,10 @@ bool ChargeRateIsOk(float chargeRate) {
   return (chargeRate <= 0.8);
 }
 
+bool batteryState(bool isTemperatureOk, bool isSocOk, bool isChargeRateOk){
+  return (isTemperatureOk && isSocOk && isChargeRateOk);
+}
+
 bool batteryIsOk(float temperature, float soc, float chargeRate) {
   bool isTemperatureOk = TemperatureIsOk(temperature);
   bool isSocOk = SocIsOk(soc);
@@ -28,8 +32,8 @@ bool batteryIsOk(float temperature, float soc, float chargeRate) {
   if(!isChargeRateOk) {
     cout << "Charge Rate out of range!\n";
   }
-  if (!isTemperatureOk || !isSocOk || !isChargeRateOk) { return false;}
-  return true;
+  bool stateOfBattery = batteryState(isTemperatureOk, isSocOk, isChargeRateOk);
+  return stateOfBattery;
 }
 
 int main() {
