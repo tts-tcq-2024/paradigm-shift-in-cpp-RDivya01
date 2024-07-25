@@ -49,17 +49,33 @@ private:
 
     bool isParameterOk(float value, const ParameterLimits& limits);
     string getParameterMessage(float value, const ParameterLimits& limits);
+    string getLowMessage(float value, const ParameterLimits& limits);
+    string getHighMessage(float value, const ParameterLimits& limits);
 };
 
 bool Battery::isParameterOk(float value, const ParameterLimits& limits) {
     return value >= limits.min && value <= limits.max;
 }
 
-string Battery::getParameterMessage(float value, const ParameterLimits& limits) {
+string Battery::getLowMessage(float value, const ParameterLimits& limits) {
     if (value < limits.min) return limits.lowBreachMessage;
     if (value < limits.min + limits.warningThreshold) return limits.lowWarningMessage;
+    return "";
+}
+
+string Battery::getHighMessage(float value, const ParameterLimits& limits) {
     if (value > limits.max) return limits.highBreachMessage;
     if (value > limits.max - limits.warningThreshold) return limits.highWarningMessage;
+    return "";
+}
+
+string Battery::getParameterMessage(float value, const ParameterLimits& limits) {
+    string lowMessage = getLowMessage(value, limits);
+    if (!lowMessage.empty()) return lowMessage;
+
+    string highMessage = getHighMessage(value, limits);
+    if (!highMessage.empty()) return highMessage;
+
     return limits.normalMessage;
 }
 
