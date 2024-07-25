@@ -58,8 +58,8 @@ void Battery::printError(const string& parameter, bool isOk) {
 }
 
 void Battery::printWarning(const string& parameter, float value, float min, float max) {
-    float lowerWarningThreshold = min + (max - min) * kTolerancePercentage;
-    float upperWarningThreshold = max - (max - min) * kTolerancePercentage;
+    float lowerWarningThreshold = min + (max * kTolerancePercentage);
+    float upperWarningThreshold = max - (max * kTolerancePercentage);
 
     if (value <= lowerWarningThreshold) {
         cout << "Warning: " << parameter << " approaching lower limit!\n";
