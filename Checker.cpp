@@ -3,6 +3,17 @@
 #include <string>
 using namespace std;
 
+struct ParameterLimits {
+    float min;
+    float max;
+    float warningThreshold;
+    string lowBreachMessage;
+    string lowWarningMessage;
+    string normalMessage;
+    string highWarningMessage;
+    string highBreachMessage;
+};
+
 class Battery {
 public:
     bool batteryIsOk(float temperature, float soc, float chargeRate);
@@ -13,75 +24,62 @@ private:
     static constexpr float kMinSoc = 20.0f;
     static constexpr float kMaxSoc = 80.0f;
     static constexpr float kMaxChargeRate = 0.8f;
-    static constexpr float kTolerancePercentage = 0.05f;
 
-    bool TemperatureIsOk(float temperature);
-    bool SocIsOk(float soc);
-    bool ChargeRateIsOk(float chargeRate);
-    bool batteryState(bool isTemperatureOk, bool isSocOk, bool isChargeRateOk);
-    void printError(const string& parameter, bool isOk);
-    void printWarning(const string& parameter, float value, float min, float max);
+    static constexpr float kTemperatureWarningThreshold = kMaxTemperature * 0.05f;
+    static constexpr float kSocWarningThreshold = kMaxSoc * 0.05f;
+    static constexpr float kChargeRateWarningThreshold = kMaxChargeRate * 0.05f;
+
+    ParameterLimits temperatureLimits {
+        kMinTemperature, kMaxTemperature, kTemperatureWarningThreshold, 
+        "Temperature too low!", "Temperature approaching low limit!", "Temperature is normal.", 
+        "Temperature approaching high limit!", "Temperature too high!"
+    };
+
+    ParameterLimits socLimits {
+        kMinSoc, kMaxSoc, kSocWarningThreshold, 
+        "SOC too low!", "SOC approaching low limit!", "SOC is normal.", 
+        "SOC approaching high limit!", "SOC too high!"
+    };
+
+    ParameterLimits chargeRateLimits {
+        0.0f, kMaxChargeRate, kChargeRateWarningThreshold, 
+        "Charge rate too high!", "", "Charge rate is normal.", 
+        "Charge rate approaching high limit!", "Charge rate too high!"
+    };
+
+    bool isParameterOk(float value, const ParameterLimits& limits);
+    string getParameterMessage(float value, const ParameterLimits& limits);
 };
 
-bool Battery::TemperatureIsOk(float temperature) {
-    bool isOk = (temperature >= kMinTemperature && temperature <= kMaxTemperature);
-    if (isOk) {
-        printWarning("Temperature", temperature, kMinTemperature, kMaxTemperature);
-    }
-    return isOk;
+bool Battery::isParameterOk(float value, const ParameterLimits& limits) {
+    return value >= limits.min && value <= limits.max;
 }
 
-bool Battery::SocIsOk(float soc) {
-    bool isOk = (soc >= kMinSoc && soc <= kMaxSoc);
-    if (isOk) {
-        printWarning("State of Charge", soc, kMinSoc, kMaxSoc);
-    }
-    return isOk;
-}
-
-bool Battery::ChargeRateIsOk(float chargeRate) {
-    bool isOk = (chargeRate <= kMaxChargeRate);
-    if (isOk) {
-        printWarning("Charge Rate", chargeRate, 0.0f, kMaxChargeRate);
-    }
-    return isOk;
-}
-
-bool Battery::batteryState(bool isTemperatureOk, bool isSocOk, bool isChargeRateOk) {
-    return (isTemperatureOk && isSocOk && isChargeRateOk);
-}
-
-void Battery::printError(const string& parameter, bool isOk) {
-    if (!isOk) {
-        cout << parameter << " out of range!\n";
-    }
-}
-
-void Battery::printWarning(const string& parameter, float value, float min, float max) {
-    float lowerWarningThreshold = min + (max * kTolerancePercentage);
-    float upperWarningThreshold = max - (max * kTolerancePercentage);
-
-    if (value <= lowerWarningThreshold) {
-        cout << "Warning: " << parameter << " approaching lower limit!\n";
-    } else if (value >= upperWarningThreshold) {
-        cout << "Warning: " << parameter << " approaching upper limit!\n";
-    }
+string Battery::getParameterMessage(float value, const ParameterLimits& limits) {
+    if (value < limits.min) return limits.lowBreachMessage;
+    if (value < limits.min + limits.warningThreshold) return limits.lowWarningMessage;
+    if (value > limits.max) return limits.highBreachMessage;
+    if (value > limits.max - limits.warningThreshold) return limits.highWarningMessage;
+    return limits.normalMessage;
 }
 
 bool Battery::batteryIsOk(float temperature, float soc, float chargeRate) {
-    bool isTemperatureOk = TemperatureIsOk(temperature);
-    bool isSocOk = SocIsOk(soc);
-    bool isChargeRateOk = ChargeRateIsOk(chargeRate);
+    bool isTemperatureOk = isParameterOk(temperature, temperatureLimits);
+    bool isSocOk = isParameterOk(soc, socLimits);
+    bool isChargeRateOk = isParameterOk(chargeRate, chargeRateLimits);
 
-    printError("Temperature", isTemperatureOk);
-    printError("State of Charge", isSocOk);
-    printError("Charge Rate", isChargeRateOk);
+    cout << getParameterMessage(temperature, temperatureLimits) << endl;
+    cout << getParameterMessage(soc, socLimits) << endl;
+    cout << getParameterMessage(chargeRate, chargeRateLimits) << endl;
 
-    return batteryState(isTemperatureOk, isSocOk, isChargeRateOk);
+    return isTemperatureOk && isSocOk && isChargeRateOk;
 }
 
 void runTests() {
     Battery battery;
+
+    // Failing test for low SOC warning
+    assert(battery.batteryIsOk(25, 21, 0.7) == true);  // Should print "SOC approaching low limit!"
 
     // Valid case
     assert(battery.batteryIsOk(25, 70, 0.7) == true);
@@ -106,6 +104,11 @@ void runTests() {
     // Warning tests
     assert(battery.batteryIsOk(1, 25, 0.05) == true);
     assert(battery.batteryIsOk(44, 75, 0.75) == true);
+
+    // Additional tests
+    assert(battery.batteryIsOk(0.1f, 20.1f, 0.01f) == true);  // All within warning thresholds
+    assert(battery.batteryIsOk(44.9f, 79.9f, 0.79f) == true);  // All within warning thresholds
+    assert(battery.batteryIsOk(0, 80, 0.8) == true);  // Boundary values
 }
 
 int main() {
