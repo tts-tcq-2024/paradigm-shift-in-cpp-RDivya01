@@ -1,5 +1,6 @@
 #include <cassert>
 #include <iostream>
+#include <string>
 using namespace std;
 
 class Battery {
@@ -12,24 +13,38 @@ private:
     static constexpr float kMinSoc = 20.0f;
     static constexpr float kMaxSoc = 80.0f;
     static constexpr float kMaxChargeRate = 0.8f;
+    static constexpr float kTolerancePercentage = 0.05f;
 
     bool TemperatureIsOk(float temperature);
     bool SocIsOk(float soc);
     bool ChargeRateIsOk(float chargeRate);
     bool batteryState(bool isTemperatureOk, bool isSocOk, bool isChargeRateOk);
     void printError(const string& parameter, bool isOk);
+    void printWarning(const string& parameter, float value, float min, float max);
 };
 
 bool Battery::TemperatureIsOk(float temperature) {
-    return (temperature >= kMinTemperature && temperature <= kMaxTemperature);
+    bool isOk = (temperature >= kMinTemperature && temperature <= kMaxTemperature);
+    if (isOk) {
+        printWarning("Temperature", temperature, kMinTemperature, kMaxTemperature);
+    }
+    return isOk;
 }
 
 bool Battery::SocIsOk(float soc) {
-    return (soc >= kMinSoc && soc <= kMaxSoc);
+    bool isOk = (soc >= kMinSoc && soc <= kMaxSoc);
+    if (isOk) {
+        printWarning("State of Charge", soc, kMinSoc, kMaxSoc);
+    }
+    return isOk;
 }
 
 bool Battery::ChargeRateIsOk(float chargeRate) {
-    return (chargeRate <= kMaxChargeRate);
+    bool isOk = (chargeRate <= kMaxChargeRate);
+    if (isOk) {
+        printWarning("Charge Rate", chargeRate, 0.0f, kMaxChargeRate);
+    }
+    return isOk;
 }
 
 bool Battery::batteryState(bool isTemperatureOk, bool isSocOk, bool isChargeRateOk) {
@@ -39,6 +54,17 @@ bool Battery::batteryState(bool isTemperatureOk, bool isSocOk, bool isChargeRate
 void Battery::printError(const string& parameter, bool isOk) {
     if (!isOk) {
         cout << parameter << " out of range!\n";
+    }
+}
+
+void Battery::printWarning(const string& parameter, float value, float min, float max) {
+    float lowerWarningThreshold = min + (max - min) * kTolerancePercentage;
+    float upperWarningThreshold = max - (max - min) * kTolerancePercentage;
+
+    if (value <= lowerWarningThreshold) {
+        cout << "Warning: " << parameter << " approaching lower limit!\n";
+    } else if (value >= upperWarningThreshold) {
+        cout << "Warning: " << parameter << " approaching upper limit!\n";
     }
 }
 
@@ -76,6 +102,10 @@ void runTests() {
     assert(battery.batteryIsOk(45, 80, 0.8) == true);
     assert(battery.batteryIsOk(25, 70, 0) == true);
     assert(battery.batteryIsOk(50, 85, 1.0) == false);
+
+    // Warning tests
+    assert(battery.batteryIsOk(1, 25, 0.05) == true);
+    assert(battery.batteryIsOk(44, 75, 0.75) == true);
 }
 
 int main() {
