@@ -1,6 +1,7 @@
 // TestBattery.cpp
 #include "Battery.hpp"
 #include <cassert>
+#include <iostream>
 
 void runTests() {
     Battery battery;
